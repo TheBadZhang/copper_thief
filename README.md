@@ -323,6 +323,7 @@ copper_thief/
   settings.py           参数持久化
   icon.png              插件图标
   install.ps1           Windows 安装脚本
+  .github/workflows/release.yml  v* 标签自动构建并发布 Release
   tests/
     test_core.py        算法单元测试
     test_settings.py    项目配置/多配置读写测试
@@ -343,7 +344,7 @@ copper_thief/
 
 ## 11. 版本记录
 
-- **1.2.0**：新增 PCB 同目录项目配置文件 `<板名>.copper_thief.json`，支持任意多个命名配置的保存、载入和删除；生成项始终归入同一个 `CopperThief` 组，支持替换或追加。
+- **1.2.0**：新增 PCB 同目录项目配置文件 `<板名>.copper_thief.json`，支持任意多个命名配置的保存、载入和删除；生成项始终归入同一个 `CopperThief` 组，支持替换或追加；新增 `v*` 标签自动构建并发布 GitHub Release 的 workflow。
 - **1.1.0**：修复“有 Zone 轮廓但没有实际填充数据”时被误判为整板铜皮、导致 0 个可放置位置的问题；未填充/空填充 Zone 现在会被忽略。新增“诊断/导出报告”按钮。
 - **1.0.0**：初始版本。
 

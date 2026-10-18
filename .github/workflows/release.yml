@@ -1,0 +1,138 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"          # v1.2.0, v1.2.1, ...
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile
+        run: python -m compileall -q .
+
+      - name: Run pure logic tests
+        run: python -m unittest tests.test_core tests.test_settings -v
+
+  build:
+    name: Build and publish release
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate tag matches __version__
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(python - <<'PY'
+          import pathlib
+          import re
+          text = pathlib.Path("__init__.py").read_text(encoding="utf-8")
+          match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', text)
+          if not match:
+              raise SystemExit("cannot find __version__ in __init__.py")
+          print(match.group(1))
+          PY
+          )
+          echo "plugin version: ${VERSION}"
+          echo "tag: ${GITHUB_REF_NAME}"
+          test "v${VERSION}" = "${GITHUB_REF_NAME}" || {
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match __version__ v${VERSION}"
+            exit 1
+          }
+
+      - name: Build installable plugin zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME="copper_thief-${GITHUB_REF_NAME}"
+          mkdir -p "dist/${NAME}/copper_thief"
+
+          # Runtime files only.  The extracted zip contains a single
+          # copper_thief/ folder that can be copied directly into:
+          #   %APPDATA%\kicad\10.0\scripting\plugins\
+          cp __init__.py plugin.py dialog.py core.py board_adapter.py settings.py \
+             icon.png LICENSE "dist/${NAME}/copper_thief/"
+          if [ -f manual_install/copper_thief/README.md ]; then
+            cp manual_install/copper_thief/README.md "dist/${NAME}/copper_thief/README.md"
+          else
+            cp README.md "dist/${NAME}/copper_thief/README.md"
+          fi
+
+          (
+            cd "dist/${NAME}"
+            zip -r "../${NAME}.zip" copper_thief
+          )
+
+          # Full source archive, useful for debugging and development.
+          git archive --format=zip \
+            --prefix="copper_thief-source-${GITHUB_REF_NAME}/" \
+            -o "dist/copper_thief-source-${GITHUB_REF_NAME}.zip" \
+            HEAD
+
+          (
+            cd dist
+            sha256sum *.zip > SHA256SUMS.txt
+            cat SHA256SUMS.txt
+          )
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: copper-thief-${{ github.ref_name }}
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Copper Thief ${{ github.ref_name }}"
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          generate_release_notes: true
+          body: |
+            ## 安装
+
+            1. 下载 `copper_thief-${{ github.ref_name }}.zip`
+            2. 解压得到 `copper_thief` 文件夹
+            3. 复制到 KiCad 用户插件目录：
+
+               ```text
+               %APPDATA%\kicad\10.0\scripting\plugins\copper_thief
+               ```
+
+               KiCad 9 请把 `10.0` 改成 `9.0`。
+            4. 完全重启 KiCad PCB Editor
+            5. 打开：`工具 -> 外部插件 -> Copper Thief (盗铜)`
+
+            `copper_thief-source-*.zip` 是完整源码包；安装插件请使用不带 `source` 的包。
+
+            SHA-256 校验值见 `SHA256SUMS.txt`。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

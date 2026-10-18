@@ -4,4 +4,6 @@ tests/_artifacts/
 demo/_settings.json
 demo/*.kicad_prl
 demo/*.kicad_pro
+manual_install/*.zip
+dist/
 *.log

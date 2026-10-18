@@ -33,7 +33,7 @@ class ProjectConfigTests(unittest.TestCase):
         return path
 
     def test_project_config_path(self):
-        board = FakeBoard(r"C:\work\uDap\uDap.kicad_pcb")
+        board = FakeBoard("/work/uDap/uDap.kicad_pcb")
         path = settings.project_config_path(board)
         self.assertIsNotNone(path)
         self.assertEqual(path.name, "uDap.copper_thief.json")
