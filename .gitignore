@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+tests/_artifacts/
+demo/_settings.json
+demo/*.kicad_prl
+demo/*.kicad_pro
+*.log
